@@ -29,7 +29,6 @@
         const db = getFirestore(app);
         const provider = new GoogleAuthProvider();
 
-        // 暴露給全域使用
         window.firebaseAuth = auth;
         window.firebaseProvider = provider;
         window.firebaseSignIn = () => signInWithPopup(auth, provider);
@@ -37,7 +36,6 @@
         window.db = db;
         window.onAuthStateChanged = onAuthStateChanged;
     </script>
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
         body { font-family: 'Inter', sans-serif; }
@@ -59,7 +57,7 @@
             <div class="flex items-center space-x-3">
                 <!-- 登入按鈕區 -->
                 <div id="authContainer" class="flex items-center">
-                    <button id="loginBtn" onclick="window.firebaseSignIn()" class="hidden items-center space-x-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl text-sm font-medium shadow-sm transition-all">
+                    <button id="loginBtn" onclick="window.firebaseSignIn()" class="flex items-center space-x-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl text-sm font-medium shadow-sm transition-all">
                         <i class="fa-brands fa-google"></i>
                         <span>Google 登入同步</span>
                     </button>
@@ -81,7 +79,7 @@
     <!-- 主體內容 -->
     <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <!-- 尚未登入提示遮罩 -->
-        <div id="loginPrompt" class="hidden bg-indigo-50 border border-indigo-100 rounded-2xl p-8 text-center mb-8">
+        <div id="loginPrompt" class="bg-indigo-50 border border-indigo-100 rounded-2xl p-8 text-center mb-8">
             <div class="w-16 h-16 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl">
                 <i class="fa-solid fa-cloud-arrow-up"></i>
             </div>
@@ -148,4 +146,125 @@
                 <div class="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
                     <div class="flex space-x-2">
                         <button onclick="switchTab('active')" id="tabActiveBtn" class="px-4 py-2 rounded-xl text-sm font-medium transition-all bg-indigo-600 text-white">進行中</button>
-                        <button onclick="switchTab('completed')" id="tabCompletedBtn" class="px-4
+                        <button onclick="switchTab('completed')" id="tabCompletedBtn" class="px-4 py-2 rounded-xl text-sm font-medium transition-all text-slate-600 hover:bg-slate-100">已完成</button>
+                    </div>
+                </div>
+                <div id="taskList" class="divide-y divide-slate-100 p-4 space-y-3">
+                    <!-- 動態載入項目 -->
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        let currentTab = 'active';
+        let tasks = [];
+        let currentUser = null;
+        let unsubscribeTasks = null;
+
+        window.addEventListener('DOMContentLoaded', () => {
+            const checkAuthInterval = setInterval(() => {
+                if (window.onAuthStateChanged && window.firebaseAuth) {
+                    clearInterval(checkAuthInterval);
+                    window.onAuthStateChanged(window.firebaseAuth, (user) => {
+                        currentUser = user;
+                        const loginBtn = document.getElementById('loginBtn');
+                        const userProfile = document.getElementById('userProfile');
+                        const loginPrompt = document.getElementById('loginPrompt');
+
+                        if (user) {
+                            loginBtn.classList.add('hidden');
+                            userProfile.classList.remove('hidden');
+                            userProfile.classList.add('flex');
+                            document.getElementById('userAvatar').src = user.photoURL || 'https://via.placeholder.com/150';
+                            document.getElementById('userName').innerText = user.displayName || user.email;
+                            loginPrompt.classList.add('hidden');
+                            loadUserTasks(user.uid);
+                        } else {
+                            loginBtn.classList.remove('hidden');
+                            loginBtn.classList.add('flex');
+                            userProfile.classList.add('hidden');
+                            loginPrompt.classList.remove('hidden');
+                            tasks = [];
+                            renderTasks();
+                        }
+                    });
+                }
+            }, 100);
+        });
+
+        function loadUserTasks(uid) {
+            if (unsubscribeTasks) unsubscribeTasks();
+            const { collection, query, where, onSnapshot, db } = window;
+            const q = query(collection(db, "tasks"), where("uid", "==", uid));
+            unsubscribeTasks = onSnapshot(q, (snapshot) => {
+                tasks = [];
+                snapshot.forEach((docSnap) => {
+                    tasks.push({ id: docSnap.id, ...docSnap.data() });
+                });
+                renderTasks();
+            });
+        }
+
+        async function addTask() {
+            if (!currentUser) {
+                alert("請先登入 Google 帳號以儲存資料！");
+                return;
+            }
+            const titleInput = document.getElementById('taskInput');
+            const categorySelect = document.getElementById('categorySelect');
+            const progressRange = document.getElementById('progressRange');
+            const priorityCheckbox = document.getElementById('priorityCheckbox');
+
+            if (!titleInput.value.trim()) return;
+
+            const newTask = {
+                uid: currentUser.uid,
+                title: titleInput.value.trim(),
+                category: categorySelect.value,
+                progress: parseInt(progressRange.value),
+                isPriority: priorityCheckbox.checked,
+                completed: false,
+                createdAt: Date.now()
+            };
+
+            try {
+                const { collection, addDoc, db } = window;
+                await addDoc(collection(db, "tasks"), newTask);
+                titleInput.value = '';
+                progressRange.value = 0;
+                document.getElementById('progressVal').innerText = '0';
+                priorityCheckbox.checked = false;
+            } catch (e) {
+                console.error("新增失敗: ", e);
+            }
+        }
+
+        async function toggleComplete(id, currentStatus) {
+            try {
+                const { doc, updateDoc, db } = window;
+                const taskRef = doc(db, "tasks", id);
+                await updateDoc(taskRef, { completed: !currentStatus });
+            } catch (e) {
+                console.error("更新失敗: ", e);
+            }
+        }
+
+        async function deleteTask(id) {
+            try {
+                const { doc, deleteDoc, db } = window;
+                await deleteDoc(doc(db, "tasks", id));
+            } catch (e) {
+                console.error("刪除失敗: ", e);
+            }
+        }
+
+        function switchTab(tab) {
+            currentTab = tab;
+            const activeBtn = document.getElementById('tabActiveBtn');
+            const completedBtn = document.getElementById('tabCompletedBtn');
+            if (tab === 'active') {
+                activeBtn.className = "px-4 py-2 rounded-xl text-sm font-medium transition-all bg-indigo-600 text-white";
+                completedBtn.className = "px-4 py-2 rounded-xl text-sm font-medium transition-all text-slate-600 hover:bg-slate-100";
+            } else {
+                completedBtn.className = "px
