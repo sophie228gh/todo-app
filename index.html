@@ -23,7 +23,7 @@
   messagingSenderId: "762889372885",
   appId: "1:762889372885:web:a8727b0e7e995f1116ce5c",
   measurementId: "G-N2RYK36SV7"
-        };
+};
 
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
@@ -63,4 +63,279 @@
                         <span>Google 登入同步</span>
                     </button>
                     <div id="userProfile" class="hidden items-center space-x-3 bg-slate-100 px-3 py-1.5 rounded-xl border border-slate-200">
-                        <img id="userAvatar
+                        <img id="userAvatar" src="" alt="Avatar" class="w-7 h-7 rounded-full border border-slate-300">
+                        <span id="userName" class="text-sm font-bold text-slate-700"></span>
+                        <button onclick="window.firebaseSignOut()" class="text-xs text-rose-600 hover:text-rose-700 font-medium ml-2 bg-white px-2 py-1 rounded-lg border border-slate-200 transition-all">
+                            登出
+                        </button>
+                    </div>
+                </div>
+                <button onclick="toggleDarkMode()" class="p-2 rounded-xl text-slate-500 hover:bg-slate-100 transition-colors">
+                    <i class="fa-solid fa-moon text-lg" id="darkModeIcon"></i>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- 主體內容 -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <!-- 應用介面本體（預設完整顯示） -->
+        <div id="appContent">
+            <!-- 數據統計看板 -->
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+                <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+                    <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">進行中事項</p>
+                    <p class="text-2xl font-bold text-indigo-600" id="statActive">0</p>
+                </div>
+                <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+                    <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">優先處理</p>
+                    <p class="text-2xl font-bold text-rose-500" id="statPriority">0</p>
+                </div>
+                <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+                    <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">已完結頁面</p>
+                    <p class="text-2xl font-bold text-emerald-600" id="statCompleted">0</p>
+                </div>
+                <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+                    <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">未完成平均進度</p>
+                    <p class="text-2xl font-bold text-slate-700" id="statAvgProgress">0%</p>
+                </div>
+            </div>
+
+            <!-- 輸入控制列 -->
+            <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm mb-6 flex flex-wrap gap-4 items-center">
+                <div class="flex-1 min-w-[240px] relative">
+                    <input type="text" id="taskInput" placeholder="輸入新事項名稱..." class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                </div>
+                <select id="categorySelect" class="bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    <option value="會計">會計</option>
+                    <option value="HR">HR</option>
+                    <option value="Chatbot">Chatbot</option>
+                    <option value="Operations">Operations</option>
+                    <option value="IT">IT</option>
+                    <option value="Customer Service">Customer Service</option>
+                    <option value="Marketing">Marketing</option>
+                </select>
+                <div class="flex items-center space-x-2 bg-slate-50 px-4 py-2.5 rounded-xl border border-slate-200">
+                    <span class="text-xs text-slate-500">進度: <span id="progressVal">0</span>%</span>
+                    <input type="range" id="progressRange" min="0" max="100" value="0" class="w-24 accent-indigo-600 cursor-pointer" oninput="document.getElementById('progressVal').innerText = this.value">
+                </div>
+                <label class="flex items-center space-x-2 cursor-pointer select-none px-3 py-2 bg-slate-50 rounded-xl border border-slate-200">
+                    <input type="checkbox" id="priorityCheckbox" class="w-4 h-4 text-indigo-600 rounded accent-indigo-600">
+                    <span class="text-sm font-medium text-rose-600"><i class="fa-solid fa-fire mr-1"></i>優先處理</span>
+                </label>
+                <button onclick="addTask()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-xl font-medium shadow-sm transition-all flex items-center space-x-2">
+                    <i class="fa-solid fa-plus"></i>
+                    <span>新增事項</span>
+                </button>
+            </div>
+
+            <!-- 任務列表清單 -->
+            <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                <div class="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+                    <div class="flex space-x-2">
+                        <button onclick="switchTab('active')" id="tabActiveBtn" class="px-4 py-2 rounded-xl text-sm font-medium transition-all bg-indigo-600 text-white">進行中</button>
+                        <button onclick="switchTab('completed')" id="tabCompletedBtn" class="px-4 py-2 rounded-xl text-sm font-medium transition-all text-slate-600 hover:bg-slate-100">已完成</button>
+                    </div>
+                </div>
+                <div id="taskList" class="divide-y divide-slate-100 p-4 space-y-3">
+                    <!-- 動態載入項目 -->
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        let currentTab = 'active';
+        let tasks = [];
+        let currentUser = null;
+        let unsubscribeTasks = null;
+
+        window.addEventListener('DOMContentLoaded', () => {
+            const checkAuthInterval = setInterval(() => {
+                if (window.onAuthStateChanged && window.firebaseAuth) {
+                    clearInterval(checkAuthInterval);
+                    window.onAuthStateChanged(window.firebaseAuth, (user) => {
+                        currentUser = user;
+                        const loginBtn = document.getElementById('loginBtn');
+                        const userProfile = document.getElementById('userProfile');
+
+                        if (user) {
+                            loginBtn.classList.add('hidden');
+                            userProfile.classList.remove('hidden');
+                            userProfile.classList.add('flex');
+                            document.getElementById('userAvatar').src = user.photoURL || 'https://via.placeholder.com/150';
+                            const displayName = user.displayName || user.email.split('@')[0];
+                            document.getElementById('userName').innerText = displayName;
+                            loadUserTasks(user.uid);
+                        } else {
+                            loginBtn.classList.remove('hidden');
+                            loginBtn.classList.add('flex');
+                            userProfile.classList.add('hidden');
+                            // 未登入時載入本地暫存或空列表
+                            tasks = JSON.parse(localStorage.getItem('local_tasks') || '[]');
+                            renderTasks();
+                        }
+                    });
+                }
+            }, 100);
+        });
+
+        function loadUserTasks(uid) {
+            if (unsubscribeTasks) unsubscribeTasks();
+            const { collection, query, where, onSnapshot, db } = window;
+            const q = query(collection(db, "tasks"), where("uid", "==", uid));
+            unsubscribeTasks = onSnapshot(q, (snapshot) => {
+                tasks = [];
+                snapshot.forEach((docSnap) => {
+                    tasks.push({ id: docSnap.id, ...docSnap.data() });
+                });
+                renderTasks();
+            });
+        }
+
+        async function addTask() {
+            const titleInput = document.getElementById('taskInput');
+            const categorySelect = document.getElementById('categorySelect');
+            const progressRange = document.getElementById('progressRange');
+            const priorityCheckbox = document.getElementById('priorityCheckbox');
+
+            if (!titleInput.value.trim()) return;
+
+            const newTask = {
+                title: titleInput.value.trim(),
+                category: categorySelect.value,
+                progress: parseInt(progressRange.value),
+                isPriority: priorityCheckbox.checked,
+                completed: false,
+                createdAt: Date.now()
+            };
+
+            if (currentUser) {
+                try {
+                    const { collection, addDoc, db } = window;
+                    newTask.uid = currentUser.uid;
+                    await addDoc(collection(db, "tasks"), newTask);
+                } catch (e) {
+                    console.error("雲端新增失敗: ", e);
+                }
+            } else {
+                // 未登入時儲存至本地
+                newTask.id = 'local_' + Date.now();
+                tasks.push(newTask);
+                localStorage.setItem('local_tasks', JSON.stringify(tasks));
+                renderTasks();
+            }
+
+            titleInput.value = '';
+            progressRange.value = 0;
+            document.getElementById('progressVal').innerText = '0';
+            priorityCheckbox.checked = false;
+        }
+
+        async function toggleComplete(id, currentStatus) {
+            if (currentUser) {
+                try {
+                    const { doc, updateDoc, db } = window;
+                    const taskRef = doc(db, "tasks", id);
+                    await updateDoc(taskRef, { completed: !currentStatus });
+                } catch (e) {
+                    console.error("更新失敗: ", e);
+                }
+            } else {
+                const t = tasks.find(item => item.id === id);
+                if (t) {
+                    t.completed = !currentStatus;
+                    localStorage.setItem('local_tasks', JSON.stringify(tasks));
+                    renderTasks();
+                }
+            }
+        }
+
+        async function deleteTask(id) {
+            if (currentUser) {
+                try {
+                    const { doc, deleteDoc, db } = window;
+                    await deleteDoc(doc(db, "tasks", id));
+                } catch (e) {
+                    console.error("刪除失敗: ", e);
+                }
+            } else {
+                tasks = tasks.filter(item => item.id !== id);
+                localStorage.setItem('local_tasks', JSON.stringify(tasks));
+                renderTasks();
+            }
+        }
+
+        function switchTab(tab) {
+            currentTab = tab;
+            const activeBtn = document.getElementById('tabActiveBtn');
+            const completedBtn = document.getElementById('tabCompletedBtn');
+            if (tab === 'active') {
+                activeBtn.className = "px-4 py-2 rounded-xl text-sm font-medium transition-all bg-indigo-600 text-white";
+                completedBtn.className = "px-4 py-2 rounded-xl text-sm font-medium transition-all text-slate-600 hover:bg-slate-100";
+            } else {
+                completedBtn.className = "px-4 py-2 rounded-xl text-sm font-medium transition-all bg-indigo-600 text-white";
+                activeBtn.className = "px-4 py-2 rounded-xl text-sm font-medium transition-all text-slate-600 hover:bg-slate-100";
+            }
+            renderTasks();
+        }
+
+        function renderTasks() {
+            const listEl = document.getElementById('taskList');
+            const filtered = tasks.filter(t => currentTab === 'active' ? !t.completed : t.completed);
+
+            const activeCount = tasks.filter(t => !t.completed).length;
+            const priorityCount = tasks.filter(t => !t.completed && t.isPriority).length;
+            const completedCount = tasks.filter(t => t.completed).length;
+            const avgProgress = activeCount > 0 ? Math.round(tasks.filter(t => !t.completed).reduce((acc, t) => acc + t.progress, 0) / activeCount) : 0;
+
+            document.getElementById('statActive').innerText = activeCount;
+            document.getElementById('statPriority').innerText = priorityCount;
+            document.getElementById('statCompleted').innerText = completedCount;
+            document.getElementById('statAvgProgress').innerText = avgProgress + '%';
+
+            if (filtered.length === 0) {
+                listEl.innerHTML = `<div class="text-center py-12 text-slate-400 text-sm">暫無相關事項</div>`;
+                return;
+            }
+
+            listEl.innerHTML = filtered.map(t => `
+                <div class="p-4 rounded-xl border ${t.isPriority ? 'border-rose-200 bg-rose-50/30' : 'border-slate-100 bg-white'} flex items-center justify-between gap-4 shadow-xs">
+                    <div class="flex items-center space-x-4 flex-1">
+                        <button onclick="toggleComplete('${t.id}', ${t.completed})" class="px-3 py-1.5 rounded-lg text-xs font-medium border ${t.completed ? 'bg-emerald-50 text-emerald-600 border-emerald-200' : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'}">
+                            ${t.completed ? '<i class="fa-solid fa-check mr-1"></i>已完成' : '標記完成'}
+                        </button>
+                        <div>
+                            <div class="flex items-center space-x-2">
+                                <span class="font-medium text-slate-800 ${t.completed ? 'line-through text-slate-400' : ''}">${t.title}</span>
+                                ${t.isPriority ? '<span class="bg-rose-100 text-rose-600 text-xs px-2 py-0.5 rounded-md font-semibold"><i class="fa-solid fa-fire mr-1"></i>優先處理</span>' : ''}
+                            </div>
+                            <div class="flex items-center space-x-3 mt-1 text-xs text-slate-400">
+                                <span class="bg-slate-100 px-2 py-0.5 rounded text-slate-600">${t.category}</span>
+                                <span>進度: ${t.progress}%</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="flex items-center space-x-3">
+                        <div class="w-24 bg-slate-200 h-2 rounded-full overflow-hidden hidden sm:block">
+                            <div class="bg-indigo-600 h-full" style="width: ${t.progress}%"></div>
+                        </div>
+                        <button onclick="deleteTask('${t.id}')" class="text-slate-400 hover:text-rose-600 p-2 transition-colors">
+                            <i class="fa-solid fa-trash-can"></i>
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function toggleDarkMode() {
+            const body = document.getElementById('bodyRoot');
+            body.classList.toggle('bg-slate-900');
+            body.classList.toggle('text-slate-100');
+            const icon = document.getElementById('darkModeIcon');
+            icon.classList.toggle('fa-moon');
+            icon.classList.toggle('fa-sun');
+        }
+    </script>
+</body>
+</html>
