@@ -420,7 +420,7 @@
 
         // Gemini AI Category Predictor Function
         async function fetchGeminiCategoryPrediction(taskTitle) {
-            const apiKey = ""; // Runtime key auto-injection
+            const apiKey = "AIzaSyCXBFY8NrtOydW-xyom79wkCmSkZl304-c"; // Runtime key auto-injection
             const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`;
 
             const activeCategoriesStr = categories.length > 0 ? categories.join(', ') : '會計, HR, Chatbot, Operations, IT, Marketing';
